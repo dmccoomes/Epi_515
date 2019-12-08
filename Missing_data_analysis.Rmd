@@ -1,0 +1,29 @@
+---
+title: "Epi 515 Final Project"
+author: "David Coomes"
+date: "12/8/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+
+
+```{r load_packages}
+
+library(foreign)
+library(haven)
+
+```
+
+
+```{r load_data}
+
+
+
+```
+
