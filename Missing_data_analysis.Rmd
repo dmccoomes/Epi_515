@@ -12,7 +12,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-
 ```{r load_packages}
 
 library(foreign)
@@ -23,6 +22,42 @@ library(haven)
 
 ```{r load_data}
 
+link="https://github.com/dmccoomes/Epi_515/raw/master/epi515_missing_data_analysis.dta"
+miss <- read_dta(url(link))
+
+```
+
+
+```{r summarize_vars}
+
+miss[!complete.cases(miss),]
+
+#dummy var for missing data
+miss$income_miss <- ifelse(is.na(miss$income), 1, 0)
+miss$res_miss <- ifelse(is.na(miss$residence), 1, 0)
+miss$art_miss <- ifelse(is.na(miss$art_base), 1, 0)
+miss$cd4_miss <- ifelse(is.na(miss$cd4cnt_ph), 1, 0)
+miss$oi_miss <- ifelse(is.na(miss$oi), 1, 0)
+
+#missing income
+summary(miss$cd4cnt_ph[miss$income_miss==1 & miss$visit==1])
+summary(miss$cd4cnt_ph[miss$income_miss==0 & miss$visit==1])
+summary(miss$oi[miss$income_miss==1 & miss$visit==4])
+summary(miss$oi[miss$income_miss==0 & miss$visit==4])
+
+#missing residence
+summary(miss$cd4cnt_ph[miss$res_miss==1 & miss$visit==1])
+summary(miss$cd4cnt_ph[miss$res_miss==0 & miss$visit==1])
+summary(miss$oi[miss$res_miss==1 & miss$visit==4])
+summary(miss$oi[miss$res_miss==0 & miss$visit==4])
+
+#missing ART at baseline
+summary(miss$cd4cnt_ph[miss$art_miss==1 & miss$visit==1])
+summary(miss$cd4cnt_ph[miss$art_miss==0 & miss$visit==1])
+summary(miss$oi[miss$art_miss==1 & miss$visit==4])
+summary(miss$oi[miss$art_miss==0 & miss$visit==4])
+
+#missing 
 
 
 ```
