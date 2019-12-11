@@ -134,6 +134,7 @@ miss.wide$income_cat[miss.wide$income>30.50] <- 4
 ```{r}
 
 miss.wide$cd4_exp1 <- miss.wide$cd4cnt_ph1*100
+miss.wide$cd4cnt_ph1_2 <- miss.wide$cd4cnt_ph1^2
 
 ```
 
@@ -145,6 +146,12 @@ summary(model.1)
 
 model.2 <- glm(oi4~cd4cnt_ph1+septrin4+art_base+income_cat+site+age_cat, data=miss.wide, family=binomial)
 lincom(model.2)
+
+model.3 <- glm(oi4~cd4cnt_ph1+cd4cnt_ph1_2+septrin4+art_base+income_cat+site+age_cat, data=miss.wide, family=binomial)
+lincom(model.3)
+
+anova(model.2, model.3, test="LRT")
+#quadratic model does not better explain the data
 
 ```
 
@@ -179,12 +186,13 @@ mice6<-complete(mice, 6)
 View(mice6)
 
 imputed.model.mice <- glm.mids(formula=oi4~cd4cnt_ph1+art_base+septrin4+income+site+age, data=mice, family=binomial(link="logit"))
-pool <- pool(data=imputed.model.mice)
+summary(imputed.model.mice)
+pool <- pool(imputed.model.mice)
 summary(pool)
 
 OR <- exp(-2.2713604)
-OR_low <- exp(-2.2713604 - 2*0.99259718)
-OR_high <- exp(-2.2713604 + 2*0.99259718)
+OR_low <- exp(-2.2713604 - 1.96*0.99259718)
+OR_high <- exp(-2.2713604 + 1.96*0.99259718)
 
 OR
 OR_low
@@ -204,7 +212,7 @@ mice <- mice(mice_vars[1:13], m=10, maxit=50, seed=135, method=method)
 summary(mice)
 
 imputed.model.mice <- glm.mids(formula=oi4~cd4cnt_ph1+art_base+septrin4+income_cat+site+age_cat, data=mice, family=binomial)
-pool <- pool(imputed.model.mice)
+pool <- pool(imputed.model.mice, data=mice)
 summary(pool)
 
 
