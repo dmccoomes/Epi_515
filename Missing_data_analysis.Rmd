@@ -16,6 +16,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(foreign)
 library(haven)
+library(stats)
+library(tidyr)
+library(reshape2)
+library(psych)
 
 ```
 
@@ -25,40 +29,85 @@ library(haven)
 link="https://github.com/dmccoomes/Epi_515/raw/master/epi515_missing_data_analysis.dta"
 miss <- read_dta(url(link))
 
+
+```
+
+
+
+```{r reshaping_data}
+
+#Reshape wide
+ordered<-miss[order(miss$id, miss$visit),]
+list<-c(3, 11:12)
+
+#list<-c("septrin", "cd4cnt_ph", "oi")
+
+miss.wide<-reshape(ordered, v.names=names(ordered)[list],
+                   idvar="id", timevar="visit", direction="wide")
+
+miss.wide<-reshape(data=miss, idvar="id",
+                   timevar= "visit",
+                   direction="wide")
+
+
+```
+
+
+```{r using_reshaped_data}
+
+link="https://github.com/dmccoomes/Epi_515/raw/master/epi528_missing_data_analysis_WIDE.dta"
+miss.wide <- read_dta(url(link))
+
 ```
 
 
 ```{r summarize_vars}
 
-miss[!complete.cases(miss),]
+summary(is.na(miss.wide))
+
+miss.wide[!complete.cases(miss.wide),]
 
 #dummy var for missing data
-miss$income_miss <- ifelse(is.na(miss$income), 1, 0)
+miss.wide$exp_miss <- ifelse(is.na(miss.wide$cd4cnt_ph1), 1, 0)
+miss.wide$out_miss <- ifelse(is.na(miss.wide$oi1), 1, 0)
+
+miss.wide$income_miss <- ifelse(is.na(miss$income), 1, 0)
 miss$res_miss <- ifelse(is.na(miss$residence), 1, 0)
 miss$art_miss <- ifelse(is.na(miss$art_base), 1, 0)
-miss$cd4_miss <- ifelse(is.na(miss$cd4cnt_ph), 1, 0)
-miss$oi_miss <- ifelse(is.na(miss$oi), 1, 0)
+miss$cd4_miss <- ifelse(is.na(miss$cd4cnt_ph1), 1, 0)
+miss$oi_miss <- ifelse(is.na(miss$oi1), 1, 0)
 
 #missing income
-summary(miss$cd4cnt_ph[miss$income_miss==1 & miss$visit==1])
-summary(miss$cd4cnt_ph[miss$income_miss==0 & miss$visit==1])
-summary(miss$oi[miss$income_miss==1 & miss$visit==4])
-summary(miss$oi[miss$income_miss==0 & miss$visit==4])
+summary(miss.wide$income[miss.wide$exp_miss==1])
+summary(miss.wide$income[miss.wide$exp_miss==0])
+summary(miss.wide$income[miss.wide$out_miss==1])
+summary(miss.wide$income[miss.wide$out_miss==0])
+summary(miss.wide$income)
 
-#missing residence
-summary(miss$cd4cnt_ph[miss$res_miss==1 & miss$visit==1])
-summary(miss$cd4cnt_ph[miss$res_miss==0 & miss$visit==1])
-summary(miss$oi[miss$res_miss==1 & miss$visit==4])
-summary(miss$oi[miss$res_miss==0 & miss$visit==4])
+#missing study site
+summary(miss.wide$site[miss.wide$exp_miss==1])
+summary(miss.wide$site[miss.wide$exp_miss==0])
+summary(miss.wide$site[miss.wide$out_miss==1])
+summary(miss.wide$site[miss.wide$out_miss==0])
+summary(miss.wide$site)
 
-#missing ART at baseline
-summary(miss$cd4cnt_ph[miss$art_miss==1 & miss$visit==1])
-summary(miss$cd4cnt_ph[miss$art_miss==0 & miss$visit==1])
-summary(miss$oi[miss$art_miss==1 & miss$visit==4])
-summary(miss$oi[miss$art_miss==0 & miss$visit==4])
+#missing gender
+summary(miss.wide$sex[miss.wide$exp_miss==1])
+summary(miss.wide$sex[miss.wide$exp_miss==0])
+summary(miss.wide$sex[miss.wide$out_miss==1])
+summary(miss.wide$sex[miss.wide$out_miss==0])
+summary(miss.wide$sex)
 
-#missing 
+#Age
+summary(miss.wide$age[miss.wide$exp_miss==1])
+summary(miss.wide$age[miss.wide$exp_miss==0])
+summary(miss.wide$age[miss.wide$out_miss==1])
+summary(miss.wide$age[miss.wide$out_miss==0])
+summary(miss.wide$age)
 
+#residence
+summary(miss.wide$exp_miss)
 
+describe.by(miss.wide, miss.wide$exp_miss)
 ```
 
