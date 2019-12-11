@@ -1,0 +1,223 @@
+---
+title: "Epi 515 Final Project"
+author: "David Coomes"
+date: "12/8/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+
+```{r load_packages}
+
+library(foreign)
+library(haven)
+library(stats)
+library(tidyr)
+library(reshape2)
+library(psych)
+library(UWbe536)
+library(mice)
+library(mi)
+
+```
+
+
+```{r load_data}
+
+link="https://github.com/dmccoomes/Epi_515/raw/master/epi515_missing_data_analysis.dta"
+miss <- read_dta(url(link))
+
+
+```
+
+
+
+```{r reshaping_data}
+
+#Reshape wide
+ordered<-miss[order(miss$id, miss$visit),]
+list<-c(3, 11:12)
+
+#list<-c("septrin", "cd4cnt_ph", "oi")
+
+miss.wide<-reshape(ordered, v.names=names(ordered)[list],
+                   idvar="id", timevar="visit", direction="wide")
+
+miss.wide<-reshape(data=miss, idvar="id",
+                   timevar= "visit",
+                   direction="wide")
+
+
+```
+
+
+```{r using_reshaped_data}
+
+link="https://github.com/dmccoomes/Epi_515/raw/master/epi528_missing_data_analysis_WIDE.dta"
+miss.wide <- read_dta(url(link))
+
+```
+
+
+```{r summarize_vars}
+
+summary(is.na(miss.wide))
+
+miss.wide[!complete.cases(miss.wide),]
+
+#dummy var for missing data
+miss.wide$exp_miss <- ifelse(is.na(miss.wide$cd4cnt_ph1), 1, 0)
+miss.wide$out_miss <- ifelse(is.na(miss.wide$oi4), 1, 0)
+
+#dummy var for residence
+miss.wide$res_0_5 <- ifelse(miss.wide$residence==0, 1, 0)
+miss.wide$res_5_10 <- ifelse(miss.wide$residence==1, 1, 0)
+miss.wide$res_10_up <- ifelse(miss.wide$residence==2, 1, 0)
+
+#missing income
+summary(miss.wide$income[miss.wide$exp_miss==1])
+summary(miss.wide$income[miss.wide$exp_miss==0])
+summary(miss.wide$income[miss.wide$out_miss==1])
+summary(miss.wide$income[miss.wide$out_miss==0])
+summary(miss.wide$income)
+
+#missing study site
+summary(miss.wide$site[miss.wide$exp_miss==1])
+summary(miss.wide$site[miss.wide$exp_miss==0])
+summary(miss.wide$site[miss.wide$out_miss==1])
+summary(miss.wide$site[miss.wide$out_miss==0])
+summary(miss.wide$site)
+
+#missing gender
+summary(miss.wide$sex[miss.wide$exp_miss==1])
+summary(miss.wide$sex[miss.wide$exp_miss==0])
+summary(miss.wide$sex[miss.wide$out_miss==1])
+summary(miss.wide$sex[miss.wide$out_miss==0])
+summary(miss.wide$sex)
+
+#Age
+summary(miss.wide$age[miss.wide$exp_miss==1])
+summary(miss.wide$age[miss.wide$exp_miss==0])
+summary(miss.wide$age[miss.wide$out_miss==1])
+summary(miss.wide$age[miss.wide$out_miss==0])
+summary(miss.wide$age)
+
+#residence
+describe.by(miss.wide, miss.wide$exp_miss)
+describe.by(miss.wide, miss.wide$out_miss)
+describe(miss.wide)
+
+describe.by(miss.wide, miss.wide$oi4)
+
+summary(miss.wide$age)
+miss.wide$age_cat[miss.wide$age<=27] <- 1
+miss.wide$age_cat[miss.wide$age>27 & miss.wide$age<=32] <- 2
+miss.wide$age_cat[miss.wide$age>32 & miss.wide$age<=40] <- 3
+miss.wide$age_cat[miss.wide$age>40] <- 4
+
+summary(miss.wide$income)
+miss.wide$income_cat[miss.wide$income<=18.75] <- 1
+miss.wide$income_cat[miss.wide$income>18.75 & miss.wide$income<=26.74] <- 2
+miss.wide$income_cat[miss.wide$income>26.74 & miss.wide$income<=30.50] <- 3
+miss.wide$income_cat[miss.wide$income>30.50] <- 4
+
+
+
+```
+
+
+```{r}
+
+miss.wide$cd4_exp1 <- miss.wide$cd4cnt_ph1*100
+
+```
+
+
+```{r complete_case}
+
+model.1 <- glm(oi4~cd4cnt_ph1, data=miss.wide, family=binomial)
+summary(model.1)
+
+model.2 <- glm(oi4~cd4cnt_ph1+septrin4+art_base+income_cat+site+age_cat, data=miss.wide, family=binomial)
+lincom(model.2)
+
+```
+
+
+```{r mice_setup}
+
+#creating factor variables
+miss.wide$residence <- as.factor(miss.wide$residence)
+miss.wide$site <- as.factor(miss.wide$site)
+miss.wide$sex <- as.factor(miss.wide$sex)
+miss.wide$art_base <- as.factor(miss.wide$art_base)
+miss.wide$septrin1 <- as.factor(miss.wide$septrin1)
+miss.wide$septrin4 <- as.factor(miss.wide$septrin4)
+miss.wide$oi1 <- as.factor(miss.wide$oi1)
+miss.wide$oi4 <- as.factor(miss.wide$oi4)
+
+miss.wide$income_cat <- as.factor(miss.wide$income_cat)
+miss.wide$age_cat <- as.factor(miss.wide$age_cat)
+
+#first mice model
+names(miss.wide)
+var<-c(2:14)
+mice_vars <- miss.wide[,var]
+names(mice_vars)
+
+method <- c("logreg", "norm.nob", "logreg", "logreg", "norm.nob", "logreg", "logreg", "logreg", "norm.nob", "norm.nob", "norm.nob", "polyreg", "logreg")
+
+mice <- mice(mice_vars[1:13], m=10, maxit=50, seed=135, method=method)
+summary(mice)
+
+mice6<-complete(mice, 6)
+View(mice6)
+
+imputed.model.mice <- glm.mids(formula=oi4~cd4cnt_ph1+art_base+septrin4+income+site+age, data=mice, family=binomial(link="logit"))
+pool <- pool(data=imputed.model.mice)
+summary(pool)
+
+OR <- exp(-2.2713604)
+OR_low <- exp(-2.2713604 - 2*0.99259718)
+OR_high <- exp(-2.2713604 + 2*0.99259718)
+
+OR
+OR_low
+OR_high
+
+
+
+#Second mice model
+names(miss.wide)
+var<-c(2:9, 11, 13:14, 21:22)
+mice_vars <- miss.wide[,var]
+names(mice_vars)
+
+method <- c("logreg", "norm.nob", "logreg", "logreg", "norm.nob", "logreg", "logreg", "logreg", "norm.nob", "polyreg", "logreg", "polyreg", "polyreg")
+
+mice <- mice(mice_vars[1:13], m=10, maxit=50, seed=135, method=method)
+summary(mice)
+
+imputed.model.mice <- glm.mids(formula=oi4~cd4cnt_ph1+art_base+septrin4+income_cat+site+age_cat, data=mice, family=binomial)
+pool <- pool(imputed.model.mice)
+summary(pool)
+
+
+```
+
+```{r convergence}
+
+plot(mice)
+densityplot(mice)
+
+```
+
+
+
+
+
