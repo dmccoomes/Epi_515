@@ -109,5 +109,41 @@ summary(miss.wide$age)
 summary(miss.wide$exp_miss)
 
 describe.by(miss.wide, miss.wide$exp_miss)
+
+propmiss <- function(dataframe) {
+  m<-sapply(dataframe, function(x) {
+    data.frame(
+      nmiss=sum(is.na(x)),
+      n=length(x),
+      propmiss=sum(is.na(x))/length(x)
+    )
+  })
+  d <- data.frame(t(m))
+  d <- sapply(d, unlist)
+  d <- as.data.frame(d)
+  d$variable <- row.names(d)
+  row.names(d) <- NULL
+  d <- cbind(d[ncol(d)],d[-ncol(d)])
+  return(d[order(d$propmiss), ])
+}
+
+propmiss(miss.wide)
+
+
 ```
+
+
+```{r complete_case}
+
+#no confounders
+model.1 <- glm(oi4~cd4cnt_ph1, data=miss.wide, family=binomial)
+summary(model.1)
+
+#adding confounders
+model.2 <- glm(oi4~cd4cnt_ph1+septrin4+age+income+residence+site:oi4, data=miss.wide, family=binomial)
+summary(model.2)
+```
+
+
+
 
