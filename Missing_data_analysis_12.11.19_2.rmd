@@ -2,12 +2,14 @@
 title: "Epi 515 Final Project"
 author: "David Coomes"
 date: "12/8/2019"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
 
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, include=FALSE)
 
 ```
 
@@ -22,9 +24,8 @@ library(reshape2)
 library(psych)
 library(UWbe536)
 library(mice)
-library(dplyr)
-#library(mi)
 library(ggplot2)
+
 ```
 
 
@@ -53,6 +54,7 @@ miss.wide<-reshape(data=miss, idvar="id",
                    timevar= "visit",
                    direction="wide")
 
+#This doesn't work - downloading wide file from Canvas
 
 ```
 
@@ -86,8 +88,6 @@ summary(miss.wide$income[miss.wide$exp_miss==0])
 summary(miss.wide$income[miss.wide$out_miss==1])
 summary(miss.wide$income[miss.wide$out_miss==0])
 summary(miss.wide$income)
-
-miss.wide$income_miss <- ifelse(is.na(miss.wide$income), 1, 0)
 
 #missing study site
 summary(miss.wide$site[miss.wide$exp_miss==1])
@@ -129,70 +129,25 @@ miss.wide$income_cat[miss.wide$income>18.75 & miss.wide$income<=26.74] <- 2
 miss.wide$income_cat[miss.wide$income>26.74 & miss.wide$income<=30.50] <- 3
 miss.wide$income_cat[miss.wide$income>30.50] <- 4
 
-miss.income <- glm(oi4~income_miss, data=miss.wide, family=binomial)
-summary(miss.income)
+
+
 ```
 
-
-```{r}
-
-miss.wide$cd4_exp1 <- miss.wide$cd4cnt_ph1*100
-miss.wide$cd4cnt_ph1_2 <- miss.wide$cd4cnt_ph1^2
-
-```
 
 
 ```{r complete_case}
 
-model.1 <- glm(oi4~cd4cnt_ph1+cd4cnt_ph4+septrin4+art_base+site+age+income, data=miss.wide, family=binomial)
+model.1 <- glm(oi4~cd4cnt_ph1, data=miss.wide, family=binomial)
 summary(model.1)
-lincom(model.1)
-lincom(model.1, c("cd4cnt_ph1=0"))
 
-model.2 <- glm(oi4~cd4cnt_ph1+septrin4+art_base+site+age+income, data=miss.wide, family=binomial)
+model.2 <- glm(oi4~cd4cnt_ph1+septrin4+art_base+income_cat+site+age_cat, data=miss.wide, family=binomial)
 lincom(model.2)
 
-model.3 <- glm(oi4~cd4cnt_ph1+cd4cnt_ph1_2+septrin4+art_base+site+age_cat, data=miss.wide, family=binomial)
-lincom(model.3)
-
-anova(model.2, model.3, test="LRT")
-#quadratic model does not better explain the data
+```
 
 
-#constructing spline variables
-miss.wide <- miss.wide %>%
-  mutate(s1=cd4cnt_ph1,
-         s2=(cd4cnt_ph1>3.5)*(cd4cnt_ph1 - 3.5),
-         s3=(cd4cnt_ph1>5)*(cd4cnt_ph1 - 5)
-  )
 
-model.4 <- glm(oi4~s1+s2+s3+s4+s5+septrin4+art_base+site+age_cat, data=miss.wide, family=binomial)
-lincom(model.4)
-
-anova(model.2, model.4, test="LRT")
-#spline model does not better explain the data
-
-model.0 <- glm(oi4~cd4cnt_ph1+septrin4, data=miss.wide, family=binomial)
-
-model.5 <- glm(oi4~s1+s2+s3+septrin4, data=miss.wide, family=binomial) #model will not converge with spline variables
-lincom(model.5)
-lincom(model.5, c("s1=0"))
-lincom(model.5, c("s1+s2=0"))
-
-anova(model.0, model.5, test="LRT")
-
-
-#categorical exposure
-miss.wide$cd4_low <- ifelse(miss.wide$cd4cnt_ph1 <=350, 1, 0)
-miss.wide$cd4_med <- ifelse(miss.wide$cd4cnt_ph1 <=500 & miss.wide$cd4cnt_ph1>350, 1, 0)
-miss.wide$cd4_high <- ifelse(miss.wide$cd4cnt_ph1 >500, 1, 0)
-
-model.6 <- glm(oi4~cd4_med+cd4_high+septrin4, data=miss.wide, family=binomial)
-summary(model.6)
-lincom(model.6)
-
-summary(miss.wide$cd4cnt_ph1[miss.wide$oi4==1])
-summary(miss.wide$cd4cnt_ph1[miss.wide$oi4==0])
+```{r plots}
 
 h1 <- hist(miss.wide$cd4cnt_ph1, breaks=30)
 h2 <- hist(miss.wide$cd4cnt_ph1[miss.wide$oi4==1], w=0.5, xlim=c(0, 10))
@@ -210,10 +165,6 @@ plot(h3, col=rgb(1,0,0,1/4), xlim=c(0,9), ylim=c(0,20), add=T, w=0.5)
 plot(h4, col=rgb(0,1,1,1/4), xlim=c(0,9), ylim=c(0,25), xlab="CD4 Count", main="Histogram of CD4 Count at follow up by OI", w=0.5)
 plot(h5, col=rgb(1,0,0,1/4), xlim=c(0,9), ylim=c(0,25), add=T)
 
-miss.wide$cd4_change <- miss.wide$cd4cnt_ph1 - miss.wide$cd4cnt_ph4
-summary(miss.wide$cd4_change)
-
-hist(miss.wide$cd4_change, breaks=10)
 
 ```
 
@@ -233,7 +184,6 @@ miss.wide$oi4 <- as.factor(miss.wide$oi4)
 miss.wide$income_cat <- as.factor(miss.wide$income_cat)
 miss.wide$age_cat <- as.factor(miss.wide$age_cat)
 
-#first mice model
 names(miss.wide)
 var<-c(2:14)
 mice_vars <- miss.wide[,var]
@@ -247,14 +197,13 @@ summary(mice)
 mice6<-complete(mice, 6)
 View(mice6)
 
-imputed.model.mice <- glm.mids(formula=oi4~cd4cnt_ph1+cd4cnt_ph4+art_base+septrin4+income+site+age, data=mice, family=binomial(link="logit"))
-summary(imputed.model.mice)
+imputed.model.mice <- glm.mids(formula=oi4~cd4cnt_ph1+art_base+septrin4+income+site+age, data=mice, family=binomial(link="logit"))
 pool <- pool(imputed.model.mice)
 summary(pool)
 
-OR <- exp(-2.390750681)
-OR_low <- exp(-2.390750681 - 1.96*1.00605034)
-OR_high <- exp(-2.390750681 + 1.96*1.00605034)
+OR <- exp(-2.2713604)
+OR_low <- exp(-2.2713604 - 2*0.99259718)
+OR_high <- exp(-2.2713604 + 2*0.99259718)
 
 OR
 OR_low
@@ -262,40 +211,40 @@ OR_high
 
 
 
-#Second mice model - using categorical variables for income and age
-names(miss.wide)
-var<-c(2:9, 11, 13:14, 20:21)
-mice_vars <- miss.wide[,var]
-names(mice_vars)
-
-method <- c("logreg", "norm.nob", "logreg", "logreg", "norm.nob", "logreg", "logreg", "logreg", "norm.nob", "polyreg", "logreg", "polyreg", "polyreg")
-
-mice <- mice(mice_vars[1:13], m=10, maxit=50, seed=135, method=method)
-summary(mice)
-
-imputed.model.mice <- glm.mids(formula=oi4~cd4cnt_ph1+art_base+septrin4+income_cat+site+age_cat, data=mice, family=binomial)
-pool <- pool(imputed.model.mice)
-summary(pool)
-
-OR2 <- exp(-2.6950489)
-OR_low2 <- exp(-2.6950489 - 1.96*1.499495)
-OR_high2 <- exp(-2.6950489 + 1.96*1.499495)
-
-OR2
-OR_low2
-OR_high2
 
 ```
 
 ```{r convergence}
 
-library(mi)
-
 plot(mice)
 densityplot(mice)
 
+propmiss <- function(dataframe) {
+  m<-sapply(dataframe, function(x) {
+    data.frame(
+      nmiss=sum(is.na(x)),
+      n=length(x),
+      propmiss=sum(is.na(x))/length(x)
+    )
+  })
+  d <- data.frame(t(m))
+  d <- sapply(d, unlist)
+  d <- as.data.frame(d)
+  d$variable <- row.names(d)
+  row.names(d) <- NULL
+  d <- cbind(d[ncol(d)],d[-ncol(d)])
+  return(d[order(d$propmiss), ])
+}
+
+propmiss(miss.wide)
+
+
 ```
 
+
+```{r,ref.label=knitr::all_labels(),echo=TRUE,eval=FALSE, tidy=TRUE, tidy.opts=list(width.cutoff=60)}
+
+```
 
 
 
